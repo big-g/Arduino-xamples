@@ -1,0 +1,58 @@
+/*
+Big-G - Using multiple shift registers to light LEDs
+Usage: Change the value of sReg to match the number of Shift Registers in use.
+See Arduino.cc for wiring instructions
+*/
+#define sReg 2 // number of serial shift registers
+const int dataPin    = 4; // DS - ICPIN14
+const int latchPin   = 5; // ST_CP - ICPIN12
+const int clockPin   = 6;  // SH_CP - ICPIN11
+
+short leds[sReg] = {};
+short dir = -1;  // -1 to move backwards, 1 to move forwards
+short pos = -1; // set the starting position; -1 forces it to be based on direction
+short wait = 250; // pause time in milliseconds
+
+void setup()
+{
+  pinMode(latchPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);
+  pinMode(clockPin, OUTPUT);
+  updateShiftRegister(0);
+}
+
+void loop()
+{
+  if (pos >=0 && pos < sReg*8){
+    bitSet(leds[pos/8],pos%8);  // to "walk" forwards you push bits into the first register - 
+                                // this pushes the bits from the first register into the second register 
+                                // and so on....
+    updateShiftRegister(1);
+    pos = pos + dir; // move forward
+  }else{
+    clearIntArray(leds);  // to "walk" backwards, all the bits have to be cleared before pushing them out again
+    updateShiftRegister(0);
+    dir==1?pos=0:pos=(sReg*8)-1; // move backward
+  }
+  delay(wait);
+}
+
+void clearIntArray(short Arr[])
+{
+  for (int i = 0;i<sizeof(Arr);i++){
+    Arr[i]=0;
+  }
+}
+
+void updateShiftRegister(short walk)
+{
+    digitalWrite(latchPin, LOW);
+    // push shift register data in reverse order of connection starting from the arduino
+    for (int i = sReg-1;i>=0;i--){ 
+      shiftOut(dataPin, clockPin, MSBFIRST, leds[i]);
+    }
+    digitalWrite(latchPin, HIGH);
+    if (walk){
+    bitClear(leds[pos/8],pos%8); // this line makes the leds "walk" backwards by clearing the registers
+    }
+}
